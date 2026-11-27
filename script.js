@@ -2,7 +2,7 @@ const toggle=document.querySelector('.menu-toggle');const nav=document.querySele
 
 // Upcoming appearances are read from Chris's published Google Sheets CSV feed.
 // Edit the private working spreadsheet; only rows marked PUBLISH should be exposed.
-const appearancesFeed='/.netlify/functions/appearances';
+const appearancesFeed='https://docs.google.com/spreadsheets/d/e/2PACX-1vTh4QKl1QTGA6Jlg96AB3ic3TCpNvRC0Ciffwz_dyc5vUt7xJGXO1sr37RtX-msJA/pub?gid=290466325&single=true&output=csv';
 const appearancesContainer=document.querySelector('#appearances .appearances-empty');
 function appearanceDebug(message){console.info('[Appearances]',message);const status=document.getElementById('appearances-status');if(status)status.textContent=message;}
 function parseCSV(text){
@@ -58,19 +58,27 @@ async function loadAppearances(){
     const csvText=await response.text();appearanceDebug('Downloaded '+csvText.length+' characters. Preview: '+csvText.slice(0,220).replace(/\s+/g,' '));const rows=parseCSV(csvText);
     if(rows.length<2)throw new Error('CSV parsed but has fewer than 2 rows (header + data).');
     const headers=rows.shift().map(h=>h.replace(/^\uFEFF/,'').trim().toLowerCase().replace(/\s+/g,' '));appearanceDebug('Parsed '+(rows.length)+' data rows. Headers: '+headers.join(' | '));
-    const get=(r,...names)=>{const i=names.map(n=>headers.indexOf(n)).find(i=>i>=0);return i===undefined?'':(r[i]||'').trim();};
+    const normHeader=h=>String(h||'').toLowerCase().replace(/^\uFEFF/,'').replace(/[^a-z0-9]+/g,' ').trim();
+    const normalizedHeaders=headers.map(normHeader);
+    const get=(r,...names)=>{const wanted=names.map(normHeader);let i=normalizedHeaders.findIndex(h=>wanted.includes(h));if(i<0)i=normalizedHeaders.findIndex(h=>wanted.some(n=>n&&h.includes(n)));return i<0?'':String(r[i]||'').trim();};
     const today=new Date();today.setHours(0,0,0,0);
-    const events=rows.map(r=>({
-      status:get(r,'status').toUpperCase(),
+    const parsedRows=rows.map((r,index)=>({
+      rowNumber:index+2,raw:r,
+      status:get(r,'status').replace(/^\uFEFF/,'').trim().toUpperCase(),
       title:get(r,'convention/event','convention','event'),
+      startRaw:get(r,'start date','start'),
+      endRaw:get(r,'end date','end'),
       start:safeDate(get(r,'start date','start')),
       end:safeDate(get(r,'end date','end')),
       venue:get(r,'venue'),city:get(r,'city'),country:get(r,'country'),
-      details:get(r,'what chris is doing','details','description'),
+      details:get(r,'what chris is doing','what chris is doing','details','description'),
       url:get(r,'event website','website','url')
-    })).filter(e=>e.status==='PUBLISH'&&e.title&&e.start&&(!e.end||e.end>=today)&&(!e.end||e.end>=e.start))
-      .sort((a,b)=>a.start-b.start);
+    }));
+    const rejectReason=e=>{if(e.status!=='PUBLISH')return 'status is '+JSON.stringify(e.status);if(!e.title)return 'event title is blank';if(!e.start)return 'start date could not be parsed: '+JSON.stringify(e.startRaw);if(e.end&&e.end<today)return 'event has already ended';if(e.end&&e.end<e.start)return 'end date is before start date';return 'accepted';};
+    const events=parsedRows.filter(e=>rejectReason(e)==='accepted').sort((a,b)=>a.start-b.start);
     appearanceDebug('Feed loaded successfully: '+events.length+' upcoming PUBLISH event(s).');if(!events.length){
+      const first=parsedRows[0];const diagnostic=first?(' Diagnostic: '+rows.length+' data row(s); headers=['+headers.join(' | ')+']; first row: status='+JSON.stringify(first.status)+', title='+JSON.stringify(first.title)+', start='+JSON.stringify(first.startRaw)+' ('+(first.start?first.start.toISOString().slice(0,10):'INVALID')+'), end='+JSON.stringify(first.endRaw)+' ('+(first.end?first.end.toISOString().slice(0,10):'INVALID')+'), reason='+rejectReason(first)+'.'):' Diagnostic: no data rows returned.';
+      appearanceDebug('Feed loaded successfully: 0 upcoming PUBLISH event(s).'+diagnostic);
       appearancesContainer.innerHTML='<p class="lead">Chris’s next convention appearances will be announced here.</p><p>Check back for event dates, venues and details of where you can meet Chris, have memorabilia signed and share your Star Wars memories.</p><p class="appearance-note">For appearance enquiries, please contact <a href="mailto:chrisparsons1@gmx.com">Chris by email</a>.</p>';
       return;
     }
