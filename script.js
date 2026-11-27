@@ -2,7 +2,7 @@ const toggle=document.querySelector('.menu-toggle');const nav=document.querySele
 
 // Upcoming appearances are read from Chris's published Google Sheets CSV feed.
 // Edit the private working spreadsheet; only rows marked PUBLISH should be exposed.
-const appearancesFeed='https://docs.google.com/spreadsheets/d/e/2PACX-1vTh4QKl1QTGA6Jlg96AB3ic3TCpNvRC0Ciffwz_dyc5vUt7xJGXO1sr37RtX-msJA/pub?gid=290466325&single=true&output=csv';
+const appearancesFeed='/.netlify/functions/appearances';
 const appearancesContainer=document.querySelector('#appearances .appearances-empty');
 function appearanceDebug(message){console.info('[Appearances]',message);const status=document.getElementById('appearances-status');if(status)status.textContent=message;}
 function parseCSV(text){

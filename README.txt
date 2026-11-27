@@ -77,3 +77,7 @@ Protocol Droids gallery additions: PD-014 K-3PO and C-3PO on Hoth; PD-015 E-3PO 
 APPEARANCES FIX (V35): The Google Sheets CSV feed is read automatically by script.js.
 The date parser now supports Australian D/M/YYYY slash dates as well as ISO dates and dotted day-first dates.
 No Netlify setting change is required for the Google Sheets feed itself. Upload/deploy this package to publish the code fix.
+
+
+APPEARANCES FEED (V44)
+The website calls /.netlify/functions/appearances. Netlify's server-side function retrieves the published Google Sheets CSV to avoid browser CORS restrictions. This requires Git-connected deployment so Netlify builds/deploys functions. The function source is in netlify/functions/appearances.mjs.
